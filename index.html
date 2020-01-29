@@ -1,0 +1,110 @@
+<!doctype HTML>
+<html>
+<head>
+<script src="epochsynch.js?3"></script>
+<script type="text/javascript">
+  var context;
+  function init(){
+    //console.log('init()');
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    context = new AudioContext();
+    loadSounds();
+  }
+  window.addEventListener('load', (event) => {
+    init();
+  });
+  var soundData={};
+
+  function loadSounds(){
+    var clickRequest = new XMLHttpRequest();
+    clickRequest.open("GET", "click.m4a", true);
+    clickRequest.responseType = "arraybuffer";
+    clickRequest.onload = function(){
+       context.decodeAudioData(clickRequest.response, function(buffer){
+          soundData['click'] = buffer;
+       }, this.onDecodeError);
+    };
+    clickRequest.send();
+
+    var clapRequest = new XMLHttpRequest();
+    clapRequest.open("GET", "clap.m4a", true);
+    clapRequest.responseType = "arraybuffer";
+    clapRequest.onload = function(){
+       context.decodeAudioData(clapRequest.response, function(buffer){
+          soundData['clap'] = buffer;
+       }, this.onDecodeError);
+    };
+    clapRequest.send();
+  }
+
+function playSound(sound) {
+  var soundSource = context.createBufferSource();
+  soundSource.buffer = soundData[sound];
+  soundSource.connect(context.destination);
+  soundSource.start();
+}
+function start(){
+  skip=true;
+  longTick();
+
+}
+function stop(){
+  window.clearTimeout(longTimeout);
+
+}
+var bpm=120;
+var offset=0;
+
+var longTimeout;
+function changeTempo(){
+  bpm=document.getElementById('tempo').value;
+  msPerBeat=Math.floor(60000/bpm);
+  skip=true;
+}
+function changeOffset(){
+  offset=document.getElementById('offset').value;
+}
+var skip=false;
+function longTick(){
+  var result=epochSynch(bpm);
+  //console.log('bpm'+bpm);
+  //console.log(result);
+
+  if(skip==false){
+    if(result.atBeat==1){
+      window.setTimeout('playSound("clap")', offset);
+    }
+    else{
+      window.setTimeout('playSound("click")', offset);
+    }
+  }
+  skip=false;
+  var htm=numberWithCommas(result.epochBars)+ " bars since Jan 1, 1970";
+  htm+="<br />"+result.atBeat;
+
+  document.getElementById('output').innerHTML=htm;
+  window.clearTimeout(longTimeout);
+  longTimeout=window.setTimeout("longTick()",result.nextBeat+1);
+}
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+
+</script>
+</head>
+<body>
+  <h1>Epoch Synch</h1>
+  <button onclick="start()" >START</button>
+  <button onclick="stop()" >STOP</button>
+  <br />
+  <label>TEMPO
+    <input type="number" value="120" id="tempo" onchange="changeTempo()" />
+  </label>
+  <br />
+  <label>OFFSET
+    <input type="number" value="0" id="offset" onchange="changeOffset()" />
+  </label>
+  <div id="output"></div>
+</body>
+</html>
